@@ -35,20 +35,26 @@ def loadAValImg(model,transformer,pathToFile,device):
 
 def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,threshold = -1):
     cowImg = loadAValImg(model,transformer,jpgList[whichImg],device)
-    if threshold == -1:
-        print(cowImg)
-    else:
-        print(cowImg > threshold)
     cowTxt = loadTxtFile(txtList[whichImg])
     cowTxt = cowTxt.reshape([6,3])
-    print(cowTxt.int())
-    if threshold != -1:
-        areTheyTheSameTens = cowTxt.int().to(device).byte() == (cowImg > threshold)
+    cowTxt = cowTxt.int().to(device).byte()
+    if threshold == -1:
+        print('Output Scores:')
+        print(cowImg)
+        print('Truth Data:')
+        print(cowTxt)
+    else:
+        areTheyTheSameTens = (cowTxt == (cowImg > threshold))
         areTheyTheSame = areTheyTheSameTens.all().item()
         if areTheyTheSame == 1:
             print("No Errors!")
         else:
-            print(areTheyTheSameTens)
+            print('Output:')
+            print(cowImg > threshold)
+            print('Truth Data:')
+            print(cowTxt)
+            print('Errors at:')
+            print(~areTheyTheSameTens)
     print('\n')
 
 
