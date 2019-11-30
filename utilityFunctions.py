@@ -4,6 +4,8 @@ import time
 import copy
 import PIL.Image as PILImage
 import matplotlib.pyplot as mplpp
+from random import shuffle
+import math
 
 def loadTxtFile(theLocAndName):
     openedFile = open(theLocAndName)
@@ -26,11 +28,30 @@ def plotThisTensorImg(inTens):
     inNp = inNp.transpose((1,2,0))
     mplpp.imshow(inNp)
 
-def checkAValImg(model,transformer,pathToFile,device):
+def loadAValImg(model,transformer,pathToFile,device):
     loadedImg = loadJpgFile(transformer,pathToFile)
     loadedImg = loadedImg.to(device)
     return model(loadedImg).reshape([6,3])
-    
+
+def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,threshold = -1):
+    cowImg = loadAValImg(model,transformer,jpgList[whichImg],device)
+    if threshold == -1:
+        print(cowImg)
+    else:
+        print(cowImg > threshold)
+    cowTxt = loadTxtFile(txtList[whichImg])
+    cowTxt = cowTxt.reshape([6,3])
+    print(cowTxt.int())
+    if threshold != -1:
+        areTheyTheSameTens = cowTxt.int().to(device).byte() == (cowImg > threshold)
+        areTheyTheSame = areTheyTheSameTens.all().item()
+        if areTheyTheSame == 1:
+            print("No Errors!")
+        else:
+            print(areTheyTheSameTens)
+    print('\n')
+
+
 # This was copied with minor modifications from Sasank Chilamkurthy's Transfer Learning for Computer Vision Tutorial:
 ## BSD 3-Clause License
 #
@@ -62,7 +83,8 @@ def checkAValImg(model,transformer,pathToFile,device):
 #OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-def train_model(device, inPictures, truthData, phase, model, criterion, optimizer, scheduler, num_epochs=25):
+# Note: currently it's assumed that the number of files is divisible by the batch size. FIX ASAP
+def train_model(device, batchSize, inPictures, truthData, phase, model, criterion, optimizer, scheduler, num_epochs=25):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -82,11 +104,25 @@ def train_model(device, inPictures, truthData, phase, model, criterion, optimize
         #running_corrects = 0
 
         # Iterate over data.
-        numBatches = len(inPictures)
-        batchSize = truthData[0].size()[0]
+        numFiles = len(inPictures)
+        numBatches = math.floor(numFiles/batchSize)
+        fileAccessOrder = np.linspace(0, numFiles-1, numFiles, dtype = int)
+        shuffle(fileAccessOrder)
         for ii in range(numBatches):
-            aPictureBatch = inPictures[ii].to(device)
-            aTruthDataBatch = truthData[ii].to(device)
+            baseNum = ii*batchSize
+            fileAccessNum = fileAccessOrder[baseNum]
+            batchJpgData = inPictures[fileAccessNum]
+            batchTxtData = truthData[fileAccessNum]
+            for jj in range(1,4):
+                fullNum = baseNum + jj
+                fileAccessNum = fileAccessOrder[fullNum]
+                currentJpgData = inPictures[fileAccessNum]
+                currentTxtData = truthData[fileAccessNum]
+                batchJpgData = torch.cat((batchJpgData,currentJpgData),0)
+                batchTxtData = torch.cat((batchTxtData,currentTxtData),0)
+                
+            aPictureBatch = batchJpgData.to(device)
+            aTruthDataBatch = batchTxtData.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -95,6 +131,8 @@ def train_model(device, inPictures, truthData, phase, model, criterion, optimize
             # track history if only in train
             with torch.set_grad_enabled(phase == 'train'):
                 outData = model(aPictureBatch)
+                #loss = criterion(outData, 8*aTruthDataBatch)
+                #loss = criterion(outData, aTruthDataBatch.round())
                 loss = criterion(outData, aTruthDataBatch)
 
                 # backward + optimize only if in training phase
