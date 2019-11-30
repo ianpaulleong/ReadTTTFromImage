@@ -1,7 +1,7 @@
 # SECTION 1: IMPORTING LIBRARIES, HYPERPARAMETERS
 # Here's where I import things
 import glob
-import numpy as np
+import pickle
 import torch
 import torchvision
 import torch.nn as nn
@@ -16,7 +16,7 @@ from utilityFunctions import compareAValImg
 batchSize = 4
 learning_rate = .0000001
 numTrainingIters = 21
-reloadData = 1
+reloadData = 0
 reloadNetwork = 0
 step_size = 7
 gamma = 0.1
@@ -73,10 +73,14 @@ model_ft = train_model(device, batchSize, jpgList, txtList,'train', myModel, myL
 # SECTION 4: VALIDATION TIME!
 valJpgList = glob.glob('Images/Val/*.jpg')
 valTxtList = glob.glob('Images/Val/*.txt')
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,3)
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,4)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,3, 0.45)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,4, 0.45)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,6)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,10)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,13)
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,15)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,15,0.45)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,16)
+
+# SECTION 5: Save the trained model!
+with open('retrainedModel.pickle', 'wb') as handle:
+    pickle.dump(myModel, handle, protocol=pickle.HIGHEST_PROTOCOL)
