@@ -6,18 +6,20 @@ import torch
 import torchvision
 import torch.nn as nn
 from torchvision import transforms
-from random import shuffle
 from torch.optim import lr_scheduler
 from utilityFunctions import loadJpgFile
 from utilityFunctions import loadTxtFile
 from utilityFunctions import train_model
+from utilityFunctions import compareAValImg
 
 # These are the tunable hyperparameters
 batchSize = 4
-learning_rate = 0.001
-numTrainingIters = 20
-reloadData = 0
+learning_rate = .0000001
+numTrainingIters = 21
+reloadData = 1
 reloadNetwork = 0
+step_size = 7
+gamma = 0.1
 
 # SECTION 2: IMPORT TRAINING DATA
 
@@ -28,14 +30,10 @@ if reloadData:
     txtFileList = glob.glob(trainDir + '*.txt')
     jpgFileList = glob.glob(trainDir + '*.jpg')
     
-    # Randomize the order in which the data is loaded
-    numFiles = len(txtFileList)
-    fileAccessOrder = np.linspace(0, numFiles-1, numFiles, dtype = int)
-    shuffle(fileAccessOrder)
     
-    # Prepare the lists that will contain the individual batches
-    jpgBatchList = []
-    txtBatchList = []
+    # Prepare the lists that will contain the data
+    jpgList = []
+    txtList = []
     
     # This determines what preprocessing will happen to the images. It might belong in the hyperparameters section
     data_transforms = transforms.Compose([
@@ -45,23 +43,13 @@ if reloadData:
     ])
     
     # Load the data into the batch lists. 
-    # Note: currently it's assumed that the number of files is divisible by the batch size. FIX ASAP
-    for ii in range(int(numFiles/batchSize)):
-        print('ALERT: iteration number',ii,'\n')
-        baseNum = ii*batchSize
-        fileAccessNum = fileAccessOrder[baseNum]
-        batchTxtData = loadTxtFile(txtFileList[fileAccessNum])
-        batchJpgData = loadJpgFile(data_transforms,jpgFileList[fileAccessNum])
-        for jj in range(1,4):
-            fullNum = baseNum + jj
-            fileAccessNum = fileAccessOrder[fullNum]
-            currentTxtData = loadTxtFile(txtFileList[fileAccessNum])
-            currentJpgData = loadJpgFile(data_transforms,jpgFileList[fileAccessNum])
-            batchTxtData = torch.cat((batchTxtData,currentTxtData),0)
-            batchJpgData = torch.cat((batchJpgData,currentJpgData),0)
-        txtBatchList.append(batchTxtData)
-        jpgBatchList.append(batchJpgData)
-    numBatches = len(txtBatchList)
+    numFiles = len(txtFileList)
+    for ii in range(numFiles):
+        print('File number:',ii,'\n')
+        batchTxtData = loadTxtFile(txtFileList[ii])
+        batchJpgData = loadJpgFile(data_transforms,jpgFileList[ii])
+        txtList.append(batchTxtData)
+        jpgList.append(batchJpgData)
 
 # SECTION 3: LOAD PRETRAINED NETWORK, MODIFY, TRAIN
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -74,11 +62,21 @@ if reloadNetwork:
 #    myModel.classifier[6] = nn.Linear(num_ftrs, 18)
     myModel = myModel.to(device)
 myLossFunction = torch.nn.SmoothL1Loss()
+#myLossFunction = torch.nn.MSELoss()
 myOptimizer = torch.optim.Adam(myModel.parameters(), lr=learning_rate)
 #myOptimizer = torch.optim.SGD(myModel.parameters(), lr=learning_rate, momentum=0.9)
-myScheduler = lr_scheduler.StepLR(myOptimizer, step_size=7, gamma=0.1)
+myScheduler = lr_scheduler.StepLR(myOptimizer, step_size, gamma)
 
-model_ft = train_model(device, jpgBatchList, txtBatchList,'train', myModel, myLossFunction, myOptimizer, myScheduler, numTrainingIters)
+model_ft = train_model(device, batchSize, jpgList, txtList,'train', myModel, myLossFunction, myOptimizer, myScheduler, numTrainingIters)
 
 
-        
+# SECTION 4: VALIDATION TIME!
+valJpgList = glob.glob('Images/Val/*.jpg')
+valTxtList = glob.glob('Images/Val/*.txt')
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,3)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,4)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,6)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,10)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,13)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,15)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,16)
