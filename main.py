@@ -15,11 +15,12 @@ from utilityFunctions import compareAValImg
 # These are the tunable hyperparameters
 batchSize = 4
 learning_rate = .0000001
-numTrainingIters = 21
-reloadData = 0
+numTrainingIters = 1
+reloadData = 1
 reloadNetwork = 0
 step_size = 7
 gamma = 0.1
+det_threshold = 0.45
 
 # SECTION 2: IMPORT TRAINING DATA
 
@@ -73,12 +74,12 @@ model_ft = train_model(device, batchSize, jpgList, txtList,'train', myModel, myL
 # SECTION 4: VALIDATION TIME!
 valJpgList = glob.glob('Images/Val/*.jpg')
 valTxtList = glob.glob('Images/Val/*.txt')
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,3, 0.45)
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,4, 0.45)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,3, det_threshold)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,4, det_threshold)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,6)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,10)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,13)
-compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,15,0.45)
+compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,15, det_threshold)
 compareAValImg(myModel,data_transforms,device,valTxtList,valJpgList,16)
 
 # SECTION 5: Save the trained model!
