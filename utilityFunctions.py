@@ -16,6 +16,14 @@ def loadTxtFile(theLocAndName):
     #theTextData = theTextData.long()
     return theTextData.unsqueeze(0)
 
+def flipUDTxtData(theTxtDataTensor):
+    outTensor = theTxtDataTensor[[0],[6,7,8,3,4,5,0,1,2,15,16,17,12,13,14,9,10,11]]
+    return outTensor.unsqueeze(0)
+
+def flipLRTxtData(theTxtDataTensor):
+    outTensor = theTxtDataTensor[[0],[2,1,0,5,4,3,8,7,6,11,10,9,14,13,12,17,16,15]]
+    return outTensor.unsqueeze(0)
+
 def loadJpgFile(transformer, theLocAndName):
     image = PILImage.open(theLocAndName)
     image = transformer(image).float()
@@ -33,24 +41,29 @@ def loadAValImg(model,transformer,pathToFile,device):
     loadedImg = loadedImg.to(device)
     return model(loadedImg).reshape([6,3])
 
-def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,threshold = -1):
+def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,thresholdX = -1,thresholdO = -1):
     cowImg = loadAValImg(model,transformer,jpgList[whichImg],device)
     cowTxt = loadTxtFile(txtList[whichImg])
     cowTxt = cowTxt.reshape([6,3])
     cowTxt = cowTxt.int().to(device).byte()
-    if threshold == -1:
+    if thresholdX == -1:
         print('Output Scores:')
         print(cowImg)
         print('Truth Data:')
         print(cowTxt)
     else:
-        areTheyTheSameTens = (cowTxt == (cowImg > threshold))
+        xTens = cowImg[0:3,0:3] > thresholdX
+        oTens = cowImg[3:6,0:3] > thresholdO
+        xoTens = torch.cat([xTens,oTens],0)
+        areTheyTheSameTens = (cowTxt == xoTens)
         areTheyTheSame = areTheyTheSameTens.all().item()
         if areTheyTheSame == 1:
             print("No Errors!")
         else:
+            print('Output Scores:')
+            print(cowImg)
             print('Output:')
-            print(cowImg > threshold)
+            print(xoTens)
             print('Truth Data:')
             print(cowTxt)
             print('Errors at:')
@@ -89,7 +102,6 @@ def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,threshold =
 #OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Note: currently it's assumed that the number of files is divisible by the batch size. FIX ASAP
 def train_model(device, batchSize, inPictures, truthData, phase, model, criterion, optimizer, scheduler, num_epochs=25):
     since = time.time()
 
