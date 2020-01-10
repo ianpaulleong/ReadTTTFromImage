@@ -16,10 +16,10 @@ from utilityFunctions import compareAValImg
 
 # These are the tunable hyperparameters
 batchSize = 4
-#learning_rate = .0000001
+# learning_rate = .0000001
 learning_rate = .001
 numTrainingIters = 12
-reloadData = 1
+reloadData = 0
 recreateNetwork = 0
 loadNetworkFromFile = 1
 step_size = 3
@@ -54,13 +54,13 @@ if reloadData:
     numFiles = len(txtFileList)
     for ii in range(numFiles):
         print('File number:',ii,'\n')
-        #Load data from files
+        # Load data from files
         curTxtData = loadTxtFile(txtFileList[ii])
         curJpgData = loadJpgFile(basic_transform,jpgFileList[ii])
         txtList.append(curTxtData)
         jpgList.append(curJpgData)
         
-        #Augment through flips!
+        # Augment through flips!
         curTxtData = flipLRTxtData(curTxtData)
         curJpgData = curJpgData.flip([3])
         txtList.append(curTxtData)
@@ -74,7 +74,7 @@ if reloadData:
         txtList.append(curTxtData)
         jpgList.append(curJpgData)
         
-        #Augment through color jitter AND flips!
+        # Augment through color jitter AND flips!
         curTxtData = loadTxtFile(txtFileList[ii])
         curJpgData = loadJpgFile(color_transform,jpgFileList[ii])
         txtList.append(curTxtData)
@@ -105,6 +105,7 @@ if recreateNetwork:
 elif loadNetworkFromFile:
     with open('retrainedModel.pickle', 'rb') as handle:
         myModel = pickle.load(handle)
+    myModel.to(device)
 
 myLossFunction = torch.nn.SmoothL1Loss()
 #myLossFunction = torch.nn.MSELoss()
@@ -116,8 +117,11 @@ model_ft = train_model(device, batchSize, jpgList, txtList,'train', myModel, myL
 
 
 # SECTION 4: VALIDATION TIME!
+# Load the validation images
 valJpgList = glob.glob('Images/Val/*.jpg')
 valTxtList = glob.glob('Images/Val/*.txt')
+# Compare model output to correct answers for a few select images. This should 
+# be for-looped but isn't yet.
 compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,3,det_thresholdX,det_thresholdO)
 compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,4,det_thresholdX,det_thresholdO)
 compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,6,det_thresholdX,det_thresholdO)
@@ -126,6 +130,9 @@ compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,13,det_thres
 compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,15,det_thresholdX,det_thresholdO)
 compareAValImg(myModel,basic_transform,device,valTxtList,valJpgList,16,det_thresholdX,det_thresholdO)
 
-# SECTION 5: Save the trained model!
+
+# SECTION 5: SAVE TRAINED MODEL
+myModel.to('cpu')
 with open('retrainedModel.pickle', 'wb') as handle:
     pickle.dump(myModel, handle, protocol=pickle.HIGHEST_PROTOCOL)
+myModel.to(device)
