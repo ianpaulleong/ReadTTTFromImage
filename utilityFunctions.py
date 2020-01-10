@@ -8,6 +8,36 @@ from random import shuffle
 import math
 
 def loadTxtFile(theLocAndName):
+    '''
+    This function reads a comma-delineated .txt file where the first 9 numbers
+    locate where the X's are on the Tic-Tac-Toe board in the corresponding
+    and the next 9 locate the O's. So for instance, if the board was:
+        +-+-+-+
+        |X| | |
+        +-+-+-+
+        | |O| |
+        +-+-+-+
+        | | |X|
+        +-+-+-+
+    Then the text file would read:
+        1,0,0,
+        0,0,0,
+        0,0,1,
+        
+        0,0,0,
+        0,1,0,
+        0,0,0
+    
+    This is read into a 1x18 pytorch tensor of type float. There's a reason why 
+    it's two dimensions (1x18) instead of one dimension (size: 18); I can't 
+    remember what that reason is. It breaks if I don't do it this way, though.
+    
+    Later note: it's because I stack board states for multiple training 
+    examples along the first dimension.
+    
+    This function takes as input a string containing the path (i.e. 
+    'Images/Val\\IMG_20191126_181744.txt') to the .txt file being loaded.
+    '''
     openedFile = open(theLocAndName)
     theStrData = openedFile.read()
     openedFile.close()
@@ -16,33 +46,102 @@ def loadTxtFile(theLocAndName):
     #theTextData = theTextData.long()
     return theTextData.unsqueeze(0)
 
+
 def flipUDTxtData(theTxtDataTensor):
+    '''
+    This is used to augment the data. It flips board position along the 
+    horizontal axis. 
+    '''
     outTensor = theTxtDataTensor[[0],[6,7,8,3,4,5,0,1,2,15,16,17,12,13,14,9,10,11]]
     return outTensor.unsqueeze(0)
 
+
 def flipLRTxtData(theTxtDataTensor):
+    '''
+    This is used to augment the data. It flips board position along the 
+    vertical axis.
+    '''
     outTensor = theTxtDataTensor[[0],[2,1,0,5,4,3,8,7,6,11,10,9,14,13,12,17,16,15]]
     return outTensor.unsqueeze(0)
 
+
 def loadJpgFile(transformer, theLocAndName):
+    '''
+    This loads data from a .jpg file into a pytorch tensor. It requires a 
+    torchvision transformer and the path to the jpg file being loaded. After 
+    doing whatever preprocessing done by the transformer, it then outputs a
+    pytorch tensor of size 1x3xNxM, where N and M is the size of the image 
+    (assuming three color channels, which seems reasonable to me). 
+    
+    Like with the .txt file loader, I also add another dimension of size 1 to 
+    the front because who knows why. 
+    
+    Oh, I just remembered! It lets me easily stack multiple images into a pile 
+    of images to use for training. Side note: this also means that currently if
+    the orientation or length/width ratio of the training images are not all
+    identical, it'll break. That's something to fix in the future. Portrait AND
+    Landscape please.
+    '''
     image = PILImage.open(theLocAndName)
     image = transformer(image).float()
     image = torch.tensor(image, requires_grad=True)
     image = image.unsqueeze(0)
     return image
 
+
 def plotThisTensorImg(inTens):
+    '''
+    A quick way to visualize the loaded .jpg files. I probably used this while
+    debugging, but I think it's obsolete now.
+    '''
     inNp = inTens.detach().numpy()
     inNp = inNp.transpose((1,2,0))
     mplpp.imshow(inNp)
 
-def loadAValImg(model,transformer,pathToFile,device):
+
+def loadAValImgAndExtractBoardState(model,transformer,pathToFile,device):
+    '''
+    This function is used as part of the validation function I put together 
+    below. First it loads a .jpg file, then passes it through the CNN to 
+    extract the board state, and finally reshapes the resulting tensor.
+    '''
     loadedImg = loadJpgFile(transformer,pathToFile)
     loadedImg = loadedImg.to(device)
     return model(loadedImg).reshape([6,3])
 
+
 def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,thresholdX = -1,thresholdO = -1):
-    cowImg = loadAValImg(model,transformer,jpgList[whichImg],device)
+    '''
+    This is the function I used to validate my model. For a single validation
+    image, compare the model output to truth data. 
+    
+    There's a lot of inputs, so let's go over them:
+        model: the CNN whose performance I want to validate
+        transformer: a torchvision transformer that preprocesses images
+        device: this indicates whether we're on the CPU or the GPU
+        txtList: a list of paths for the .txt files that contain the 
+                 validation truth data
+        jpgList: a list of paths for the .jpg image files to be used for 
+                 validation
+        whichImg: the index of the specific .jpg file to be used for this one
+                  validation instance
+        thresholdX: the threshold value above which it will be assumed that a 
+                    square contains an X.
+        thresholdO: the threshold value above which it will be assumed that a 
+                    square contains an O. I determined through testing that it
+                    made sense to have seperate threshold values for X and O.
+    
+    If the thresholded model output perfectly matches the truth data, the 
+    function simply prints a happy message. If not, then the model data, the 
+    thresholded model data, the truth data, and the location of errors are 
+    printed out.
+    
+    This function was designed to also work if no threshold values for X and O
+    were given. In this case, it would simply display the truth data along with
+    the scores for X and O for all positions.
+    
+    '''
+    cowImg = loadAValImgAndExtractBoardState(model,transformer,jpgList[whichImg],device)
     cowTxt = loadTxtFile(txtList[whichImg])
     cowTxt = cowTxt.reshape([6,3])
     cowTxt = cowTxt.int().to(device).byte()
@@ -71,7 +170,13 @@ def compareAValImg(model,transformer,device,txtList,jpgList,whichImg,thresholdX 
     print('\n')
 
 
-# This was copied with minor modifications from Sasank Chilamkurthy's Transfer Learning for Computer Vision Tutorial:
+
+# This function was copied with minor modifications from Sasank Chilamkurthy's 
+# Transfer Learning for Computer Vision Tutorial. I did the bare minimum to get
+# it working for training only, and I've kludged out all the bits that relate
+# to using this function for validation. I really need to clean it up and/or
+# reactivate the validation part of this function. Eventually.
+# 
 ## BSD 3-Clause License
 #
 #Copyright (c) 2017, Pytorch contributors
