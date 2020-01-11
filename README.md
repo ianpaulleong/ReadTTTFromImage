@@ -8,4 +8,4 @@ The data I used for training can be found at:
 **Releases**:     
 https://github.com/ianpaulleong/ReadTTTFromImage/releases
 
-`wget https://github.com/ianpaulleong/readTTTFromImage/releases/download/v1.0.1/Images.zip`
+`wget https://github.com/ianpaulleong/readTTTFromImage/releases/download/1.0.1/Images.zip`
