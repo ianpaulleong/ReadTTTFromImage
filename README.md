@@ -3,7 +3,7 @@ This project exists to train a Convolutional Neural Network to read the current 
 
 Training and validation data should be placed in a folder called 'Images', in the subfolders 'Training' and Val. 
 
-The data I used for training can be found at   
+The data I used for training can be found at:
 
 **Releases**:     
 https://github.com/ianpaulleong/ReadTTTFromImage/releases
